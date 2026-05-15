@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>航班延误风险助手</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: #f0f4f8; min-height: 100vh; padding: 24px 16px; color: #1a202c; }
+
+  .container { max-width: 680px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1a202c; }
+  .subtitle { font-size: 14px; color: #718096; margin-bottom: 24px; }
+
+  .search-box { display: flex; gap: 10px; margin-bottom: 28px; }
+  .search-box input {
+    flex: 1; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px;
+    font-size: 18px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    outline: none; transition: border-color .2s;
+  }
+  .search-box input:focus { border-color: #4299e1; }
+  .search-box input::placeholder { font-weight: 400; letter-spacing: 0; font-size: 15px; color: #a0aec0; }
+  .search-box button {
+    padding: 14px 24px; background: #2b6cb0; color: #fff; border: none;
+    border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background .2s; white-space: nowrap;
+  }
+  .search-box button:hover { background: #2c5282; }
+  .search-box button:disabled { background: #a0aec0; cursor: not-allowed; }
+
+  .card { background: #fff; border-radius: 16px; padding: 20px 24px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 14px; }
+
+  /* 航班头部 */
+  .flight-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .flight-number { font-size: 24px; font-weight: 800; color: #1a202c; }
+  .airline { font-size: 13px; color: #718096; background: #edf2f7; padding: 3px 10px; border-radius: 20px; }
+
+  /* 出发地→目的地路由 */
+  .route-block { margin-top: 14px; display: flex; align-items: flex-start; gap: 0; }
+  .route-endpoint { flex: 1; }
+  .route-endpoint.arr { text-align: right; }
+  .route-iata { font-size: 28px; font-weight: 800; color: #2d3748; line-height: 1; }
+  .route-name { font-size: 13px; color: #718096; margin-top: 3px; line-height: 1.4; }
+  .route-meta { font-size: 12px; color: #a0aec0; margin-top: 2px; }
+  .route-arrow-col { display: flex; flex-direction: column; align-items: center;
+                     padding: 0 12px; min-width: 60px; margin-top: 6px; }
+  .route-arrow-line { color: #cbd5e0; font-size: 20px; line-height: 1; }
+  .route-flight-time { font-size: 11px; color: #a0aec0; margin-top: 2px; white-space: nowrap; }
+
+  /* 时间行 */
+  .time-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid #edf2f7;
+              display: flex; flex-wrap: wrap; gap: 16px; }
+  .time-item { display: flex; flex-direction: column; gap: 2px; }
+  .time-label { font-size: 11px; color: #a0aec0; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .time-value { font-size: 15px; font-weight: 700; color: #2d3748; }
+  .time-delay { font-size: 13px; font-weight: 600; color: #e53e3e; }
+
+  /* 登机口/行李 */
+  .gate-row { margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .gate-badge { display: flex; align-items: center; gap: 6px; background: #ebf8ff;
+                border: 1px solid #bee3f8; border-radius: 8px; padding: 6px 12px; }
+  .gate-badge .gb-label { font-size: 11px; color: #2b6cb0; font-weight: 600; }
+  .gate-badge .gb-value { font-size: 14px; color: #1a365d; font-weight: 700; }
+
+  /* 状态标签 */
+  .status-badge { display: inline-flex; align-items: center; gap: 4px;
+                  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-scheduled .status-dot { background: #3182ce; }
+  .status-active .status-dot    { background: #38a169; animation: pulse 1.5s infinite; }
+  .status-landed .status-dot    { background: #718096; }
+  .status-cancelled .status-dot { background: #e53e3e; }
+  .status-diverted .status-dot  { background: #d69e2e; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-scheduled { background: #ebf8ff; color: #2b6cb0; }
+  .status-active     { background: #e6fffa; color: #276749; }
+  .status-landed     { background: #edf2f7; color: #4a5568; }
+  .status-cancelled  { background: #fff5f5; color: #c53030; }
+  .status-diverted   { background: #fffbeb; color: #b7791f; }
+
+  /* 风险卡片 */
+  .risk-card { border-radius: 16px; padding: 18px 22px; margin-bottom: 14px; }
+  .risk-card.low    { background: #f0fff4; border: 1.5px solid #9ae6b4; }
+  .risk-card.medium { background: #fffbeb; border: 1.5px solid #fbd38d; }
+  .risk-card.high   { background: #fff5f5; border: 1.5px solid #feb2b2; }
+  .risk-card.done   { background: #ebf8ff; border: 1.5px solid #90cdf4; }
+
+  .risk-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .risk-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+  .low .risk-dot    { background: #38a169; }
+  .medium .risk-dot { background: #d69e2e; }
+  .high .risk-dot   { background: #e53e3e; }
+  .done .risk-dot   { background: #3182ce; }
+  .risk-label { font-size: 18px; font-weight: 700; }
+  .low .risk-label    { color: #276749; }
+  .medium .risk-label { color: #744210; }
+  .high .risk-label   { color: #742a2a; }
+  .done .risk-label   { color: #2c5282; }
+  .risk-sub { font-size: 13px; margin-top: 2px; }
+  .low .risk-sub    { color: #48bb78; }
+  .medium .risk-sub { color: #ed8936; }
+  .high .risk-sub   { color: #fc8181; }
+  .done .risk-sub   { color: #63b3ed; }
+
+  /* 出行建议列表 */
+  .advice-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .advice-list li {
+    font-size: 14px; line-height: 1.55;
+    padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,.6);
+  }
+  .low .advice-list li    { border-left: 3px solid #68d391; color: #276749; }
+  .medium .advice-list li { border-left: 3px solid #f6ad55; color: #744210; }
+  .high .advice-list li   { border-left: 3px solid #fc8181; color: #742a2a; }
+  .done .advice-list li   { border-left: 3px solid #63b3ed; color: #2c5282; }
+
+  /* 天气 */
+  .weather-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 480px) { .weather-grid { grid-template-columns: 1fr; } }
+  .weather-card { background: #f7fafc; border-radius: 12px; padding: 16px; }
+  .weather-badge { font-size: 11px; font-weight: 700; color: #fff; padding: 2px 8px;
+                   border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+  .weather-badge.dep { background: #4299e1; }
+  .weather-badge.arr { background: #9f7aea; }
+  .weather-airport { font-size: 13px; font-weight: 700; color: #2d3748; margin-bottom: 2px; line-height: 1.3; }
+  .weather-iata { font-size: 11px; color: #a0aec0; margin-bottom: 6px; }
+  .weather-temp { font-size: 28px; font-weight: 800; color: #2d3748; line-height: 1; }
+  .weather-desc { font-size: 13px; color: #718096; margin: 4px 0 10px; }
+  .weather-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stat { font-size: 12px; color: #718096; background: #edf2f7; padding: 3px 8px; border-radius: 6px; }
+
+  /* 携带建议 */
+  .packing-section { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 480px) { .packing-section { grid-template-columns: 1fr; } }
+  .pack-group h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px;
+                   display: flex; align-items: center; gap: 6px; }
+  .pack-group.bring h4 { color: #276749; }
+  .pack-group.skip h4  { color: #742a2a; }
+  .pack-tag { display: inline-block; padding: 4px 10px; border-radius: 20px;
+              font-size: 13px; margin: 3px 4px 3px 0; }
+  .bring .pack-tag { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+  .skip .pack-tag  { background: #fff5f5; color: #742a2a; border: 1px solid #feb2b2; }
+
+  .section-title { font-size: 12px; font-weight: 700; color: #a0aec0;
+                   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; }
+
+  .loading { text-align: center; padding: 40px; color: #718096; font-size: 15px; }
+  .loading-spinner { width: 36px; height: 36px; border: 3px solid #e2e8f0;
+                     border-top-color: #4299e1; border-radius: 50%;
+                     animation: spin .8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box { background: #fff5f5; border: 1.5px solid #feb2b2; border-radius: 12px;
+               padding: 16px 20px; color: #c53030; font-size: 14px; }
+
+  #result { display: none; }
+
+  /* 历史记录 */
+  .history-section { margin-bottom: 18px; }
+  .history-label { font-size: 11px; font-weight: 700; color: #a0aec0;
+                   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .history-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .history-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px 5px 8px; border-radius: 20px; cursor: pointer;
+    border: 1px solid #e2e8f0; background: #fff; font-size: 13px;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .history-chip:hover { box-shadow: 0 1px 4px rgba(0,0,0,.12); border-color: #cbd5e0; }
+  .history-chip .hc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .hc-dot.low    { background: #38a169; }
+  .hc-dot.medium { background: #d69e2e; }
+  .hc-dot.high   { background: #e53e3e; }
+  .hc-dot.unknown { background: #a0aec0; }
+  .history-chip .hc-flight { font-weight: 700; color: #2d3748; }
+  .history-chip .hc-route  { font-size: 11px; color: #a0aec0; }
+  .history-chip .hc-del {
+    margin-left: 2px; color: #cbd5e0; font-size: 14px; line-height: 1;
+    background: none; border: none; cursor: pointer; padding: 0 2px;
+  }
+  .history-chip .hc-del:hover { color: #e53e3e; }
+
+  /* 用户栏 */
+  .user-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border-radius: 12px; padding: 10px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 20px;
+  }
+  .user-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0;
+  }
+  .user-name { font-size: 14px; color: #2d3748; font-weight: 600; flex: 1; }
+  .user-email { font-size: 12px; color: #a0aec0; }
+  .logout-btn, .login-btn {
+    font-size: 13px; color: #718096; text-decoration: none;
+    padding: 5px 12px; border-radius: 8px; border: 1px solid #e2e8f0;
+    transition: background .2s; white-space: nowrap; display: inline-flex; align-items: center;
+  }
+  .logout-btn:hover, .login-btn:hover { background: #f7fafc; color: #4a5568; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="user-bar">
+    {% if user.is_authenticated %}
+      {% if user.picture %}
+      <img src="{{ user.picture }}" alt="头像" class="user-avatar" referrerpolicy="no-referrer">
+      {% endif %}
+      <div style="flex:1;min-width:0">
+        <div class="user-name">{{ user.name }}</div>
+        <div class="user-email">{{ user.email }}</div>
+      </div>
+      <a href="/logout" class="logout-btn">退出登录</a>
+    {% else %}
+      <div style="flex:1;font-size:14px;color:#718096">航班延误风险助手</div>
+      <a href="/login" class="login-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        使用 Google 登录
+      </a>
+    {% endif %}
+  </div>
+
+  <h1>✈️ 航班延误风险助手</h1>
+  <p class="subtitle">输入航班号，实时查询延误风险 + 目的地天气携带建议</p>
+
+  <div class="search-box">
+    <input id="flightInput" type="text" placeholder="输入航班号，如 MH386、CA1234、EK201"
+           autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="searchBtn" onclick="search()">查询</button>
+  </div>
+
+  {% if user.is_authenticated %}
+  <div id="history-section" class="history-section" style="display:none">
+    <div class="history-label">最近查询</div>
+    <div id="history-list" class="history-list"></div>
+  </div>
+  {% endif %}
+
+  <div id="loading" style="display:none" class="card">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      正在查询实时数据...
+    </div>
+  </div>
+
+  <div id="error" style="display:none"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+const input = document.getElementById("flightInput");
+input.addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+
+// 历史记录
+const isLoggedIn = {{ 'true' if user.is_authenticated else 'false' }};
+
+function loadHistory() {
+  if (!isLoggedIn) return;
+  fetch("/history")
+    .then(r => r.json())
+    .then(records => renderHistory(records));
+}
+
+function renderHistory(records) {
+  const section = document.getElementById("history-section");
+  const list = document.getElementById("history-list");
+  if (!section || !list) return;
+  if (!records.length) { section.style.display = "none"; return; }
+
+  list.innerHTML = records.map(r => `
+    <span class="history-chip" onclick="searchFlight('${r.flight}')">
+      <span class="hc-dot ${r.risk || 'unknown'}"></span>
+      <span class="hc-flight">${r.flight}</span>
+      <span class="hc-route">${r.dep_iata || ''}→${r.arr_iata || ''}</span>
+      <button class="hc-del" title="删除" onclick="deleteHistory(event,'${r.flight}')">×</button>
+    </span>
+  `).join("");
+  section.style.display = "block";
+}
+
+function searchFlight(flight) {
+  input.value = flight;
+  search();
+}
+
+function deleteHistory(e, flight) {
+  e.stopPropagation();
+  fetch(`/history/${flight}`, { method: "DELETE" })
+    .then(r => r.json())
+    .then(() => loadHistory());
+}
+
+loadHistory();
+
+const STATUS_MAP = {
+  scheduled: { label: "计划中", cls: "scheduled" },
+  active:    { label: "飞行中", cls: "active" },
+  landed:    { label: "已落地", cls: "landed" },
+  cancelled: { label: "已取消", cls: "cancelled" },
+  diverted:  { label: "已备降", cls: "diverted" },
+};
+
+const RISK_MAP = {
+  low:    { label: "🟢 低风险", sub: "两地天气良好，航班状态正常", cls: "low" },
+  medium: { label: "🟡 中等风险", sub: "存在一定延误可能，建议关注动态", cls: "medium" },
+  high:   { label: "🔴 高风险", sub: "延误概率较高，建议提前确认航班状态", cls: "high" },
+  done:   { label: "🔵 航班已完成", sub: "今日此航班已落地或取消", cls: "done" },
+};
+
+function fmtTime(t) {
+  if (!t) return "—";
+  return t.substring(11, 16);
+}
+
+// 比较两个时间字符串，返回颜色：早于基准 → 绿色，晚于基准 → 橙色，相同 → 默认
+function timeColor(actual, scheduled) {
+  if (!actual || !scheduled) return "#2d3748";
+  return actual < scheduled ? "#38a169" : actual > scheduled ? "#d69e2e" : "#2d3748";
+}
+
+function search() {
+  const flight = input.value.trim().toUpperCase().replace(/\s/g, "");
+  if (!flight) { input.focus(); return; }
+
+  document.getElementById("loading").style.display = "block";
+  document.getElementById("error").style.display = "none";
+  document.getElementById("result").style.display = "none";
+  document.getElementById("searchBtn").disabled = true;
+
+  fetch("/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ flight })
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("searchBtn").disabled = false;
+
+    if (data.error) {
+      const errEl = document.getElementById("error");
+      errEl.innerHTML = `<div class="error-box">⚠️ ${data.error}</div>`;
+      errEl.style.display = "block";
+      return;
+    }
+    renderResult(data);
+    loadHistory();
+  })
+  .catch(err => {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("searchBtn").disabled = false;
+    const errEl = document.getElementById("error");
+    errEl.innerHTML = `<div class="error-box">⚠️ 网络错误，请重试</div>`;
+    errEl.style.display = "block";
+  });
+}
+
+function renderResult(d) {
+  const f = d.flight;
+  const dep = d.dep_weather;
+  const arr = d.arr_weather;
+  const status = STATUS_MAP[f.status] || { label: f.status, cls: "scheduled" };
+
+  const isDone = ["landed", "cancelled", "diverted"].includes(f.status);
+  const riskKey = isDone ? "done" : d.risk;
+  const risk = RISK_MAP[riskKey] || RISK_MAP.low;
+
+  // 登机口/行李信息
+  const gateHtml = buildGateRow(f);
+
+  // 出行建议
+  const adviceHtml = (d.advice && d.advice.length) ?
+    `<ul class="advice-list">${d.advice.map(a => `<li>${a}</li>`).join("")}</ul>` : "";
+
+  const html = `
+    <!-- 航班信息卡 -->
+    <div class="card">
+      <div class="flight-header">
+        <span class="flight-number">${f.number}</span>
+        <span class="airline">${f.airline}</span>
+        <span class="status-badge status-${status.cls}">
+          <span class="status-dot"></span>${status.label}
+        </span>
+        ${f.delay > 0 ? `<span class="time-delay">延误 ${f.delay} 分</span>` : ""}
+      </div>
+
+      <!-- 出发地 → 目的地 -->
+      <div class="route-block">
+        <div class="route-endpoint dep">
+          <div class="route-iata">${f.dep_iata}</div>
+          <div class="route-name">${f.dep_airport_zh}</div>
+        </div>
+        <div class="route-arrow-col">
+          <div class="route-arrow-line">→</div>
+        </div>
+        <div class="route-endpoint arr">
+          <div class="route-iata">${f.arr_iata}</div>
+          <div class="route-name">${f.arr_airport_zh}</div>
+        </div>
+      </div>
+
+      <!-- 时间信息 -->
+      <div class="time-row">
+        <div class="time-item">
+          <span class="time-label">计划起飞</span>
+          <span class="time-value">${fmtTime(f.dep_scheduled)}</span>
+        </div>
+        ${f.dep_estimated && f.dep_estimated !== f.dep_scheduled ? `
+        <div class="time-item">
+          <span class="time-label">预计起飞</span>
+          <span class="time-value" style="color:#d69e2e">${fmtTime(f.dep_estimated)}</span>
+        </div>` : ""}
+        ${f.dep_actual ? `
+        <div class="time-item">
+          <span class="time-label">实际起飞</span>
+          <span class="time-value" style="color:${timeColor(f.dep_actual, f.dep_scheduled)}">${fmtTime(f.dep_actual)}</span>
+        </div>` : ""}
+        <div class="time-item">
+          <span class="time-label">计划到达</span>
+          <span class="time-value">${fmtTime(f.arr_scheduled)}</span>
+        </div>
+        ${f.arr_estimated && f.arr_estimated !== f.arr_scheduled ? `
+        <div class="time-item">
+          <span class="time-label">预计到达</span>
+          <span class="time-value" style="color:${timeColor(f.arr_estimated, f.arr_scheduled)}">${fmtTime(f.arr_estimated)}</span>
+        </div>` : ""}
+        ${f.arr_actual ? `
+        <div class="time-item">
+          <span class="time-label">实际到达</span>
+          <span class="time-value" style="color:${timeColor(f.arr_actual, f.arr_scheduled)}">${fmtTime(f.arr_actual)}</span>
+        </div>` : ""}
+      </div>
+
+      <!-- 登机口 / 行李转盘 -->
+      ${gateHtml}
+    </div>
+
+    <!-- 延误风险 + 出行建议 -->
+    <div class="risk-card ${risk.cls}">
+      <div class="risk-header">
+        <div class="risk-dot"></div>
+        <div>
+          <div class="risk-label">${risk.label}</div>
+          <div class="risk-sub">${risk.sub}</div>
+        </div>
+      </div>
+      ${adviceHtml}
+    </div>
+
+    <!-- 天气 -->
+    <div class="card">
+      <div class="section-title">实时天气</div>
+      <div class="weather-grid">
+        ${renderWeather(dep, f.dep_airport_zh, f.dep_iata, "dep", "出发地")}
+        ${renderWeather(arr, f.arr_airport_zh, f.arr_iata, "arr", "目的地")}
+      </div>
+    </div>
+
+    <!-- 目的地携带建议 -->
+    ${d.bring.length || d.skip.length ? `
+    <div class="card">
+      <div class="section-title">📍 目的地携带建议</div>
+      <div class="packing-section">
+        <div class="pack-group bring">
+          <h4>✅ 建议带</h4>
+          ${d.bring.map(i => `<span class="pack-tag">${i}</span>`).join("")}
+        </div>
+        <div class="pack-group skip">
+          <h4>❌ 不需要带</h4>
+          ${d.skip.map(i => `<span class="pack-tag">${i}</span>`).join("")}
+        </div>
+      </div>
+    </div>` : ""}
+  `;
+
+  const el = document.getElementById("result");
+  el.innerHTML = html;
+  el.style.display = "block";
+}
+
+function buildGateRow(f) {
+  const items = [];
+  if (f.dep_terminal) items.push(`<div class="gate-badge"><span class="gb-label">出发航站楼</span><span class="gb-value">${f.dep_terminal}</span></div>`);
+  if (f.dep_gate)     items.push(`<div class="gate-badge"><span class="gb-label">登机口</span><span class="gb-value">${f.dep_gate}</span></div>`);
+  if (f.arr_terminal) items.push(`<div class="gate-badge"><span class="gb-label">到达航站楼</span><span class="gb-value">${f.arr_terminal}</span></div>`);
+  if (f.arr_baggage)  items.push(`<div class="gate-badge"><span class="gb-label">行李转盘</span><span class="gb-value">${f.arr_baggage}</span></div>`);
+  return items.length ? `<div class="gate-row">${items.join("")}</div>` : "";
+}
+
+function renderWeather(wx, airportName, iata, type, label) {
+  if (!wx) return `
+    <div class="weather-card">
+      <span class="weather-badge ${type}">${label}</span>
+      <div class="weather-airport">${airportName}</div>
+      <div class="weather-iata">${iata}</div>
+      <div style="color:#a0aec0;font-size:13px;margin-top:8px">天气数据暂不可用</div>
+    </div>`;
+  return `
+    <div class="weather-card">
+      <span class="weather-badge ${type}">${label}</span>
+      <div class="weather-airport">${airportName}</div>
+      <div class="weather-iata">${iata}</div>
+      <div class="weather-temp">${wx.temp}°C</div>
+      <div class="weather-desc">${wx.desc}</div>
+      <div class="weather-stats">
+        <span class="stat">💧 湿度 ${wx.humidity}%</span>
+        <span class="stat">👁 能见度 ${wx.visibility} km</span>
+        <span class="stat">💨 风速 ${wx.wind} km/h</span>
+        ${parseFloat(wx.precip) > 0 ? `<span class="stat">🌧 降水 ${wx.precip} mm</span>` : ""}
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

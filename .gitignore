@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+env/
+*.egg-info/
+
+# Flask
+instance/
+.webassets-cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets (API key 不能提交！)
+*.env
+.env.*
+!.env.example
+
+# 用户数据
+web/data/history.json
