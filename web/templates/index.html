@@ -5,233 +5,515 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>航班延误风险助手</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-         background: #f0f4f8; min-height: 100vh; padding: 24px 16px; color: #1a202c; }
+/* ---- Reset ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: #eef2ff;
+  min-height: 100vh;
+  color: #1a1f36;
+}
 
-  .container { max-width: 680px; margin: 0 auto; }
+/* ---- Header ---- */
+.app-header {
+  background: linear-gradient(145deg, #1e3a8a 0%, #3730a3 55%, #5b21b6 100%);
+  padding: 32px 16px 80px;
+  position: relative; overflow: hidden;
+}
+.app-header::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 85%, rgba(99,102,241,.35) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(167,139,250,.25) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(79,70,229,.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.header-inner {
+  max-width: 680px; margin: 0 auto; position: relative; z-index: 1;
+  display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+}
+.header-title { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.3px; }
+.header-sub   { font-size: 13px; color: rgba(255,255,255,.6); margin-top: 4px; }
+.header-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2);
+  backdrop-filter: blur(8px); border-radius: 20px;
+  padding: 5px 12px; font-size: 12px; color: rgba(255,255,255,.85); font-weight: 600;
+}
 
-  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #1a202c; }
-  .subtitle { font-size: 14px; color: #718096; margin-bottom: 24px; }
+/* ---- Container ---- */
+.container { max-width: 680px; margin: -56px auto 48px; padding: 0 16px; position: relative; z-index: 2; }
 
-  .search-box { display: flex; gap: 10px; margin-bottom: 28px; }
-  .search-box input {
-    flex: 1; padding: 14px 18px; border: 2px solid #e2e8f0; border-radius: 12px;
-    font-size: 18px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
-    outline: none; transition: border-color .2s;
-  }
-  .search-box input:focus { border-color: #4299e1; }
-  .search-box input::placeholder { font-weight: 400; letter-spacing: 0; font-size: 15px; color: #a0aec0; }
-  .search-box button {
-    padding: 14px 24px; background: #2b6cb0; color: #fff; border: none;
-    border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer;
-    transition: background .2s; white-space: nowrap;
-  }
-  .search-box button:hover { background: #2c5282; }
-  .search-box button:disabled { background: #a0aec0; cursor: not-allowed; }
+/* ---- User Bar ---- */
+.user-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,.97); backdrop-filter: blur(12px);
+  border-radius: 14px; padding: 10px 14px; margin-bottom: 12px;
+  box-shadow: 0 4px 24px rgba(79,70,229,.12), 0 1px 4px rgba(0,0,0,.07);
+}
+.user-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(99,102,241,.3); }
+.user-info { flex: 1; min-width: 0; }
+.user-name  { font-size: 14px; color: #1a1f36; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-email { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+.logout-btn, .login-btn {
+  font-size: 13px; color: #4f46e5; text-decoration: none;
+  padding: 6px 14px; border-radius: 9px; border: 1.5px solid #c7d2fe;
+  background: #eef2ff; font-weight: 600; transition: all .2s; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+}
+.logout-btn:hover, .login-btn:hover { background: #e0e7ff; border-color: #a5b4fc; }
 
-  .card { background: #fff; border-radius: 16px; padding: 20px 24px;
-          box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 14px; }
+/* ---- Search Card ---- */
+.search-card {
+  background: #fff; border-radius: 16px; padding: 18px 20px; margin-bottom: 12px;
+  box-shadow: 0 4px 24px rgba(79,70,229,.08), 0 1px 4px rgba(0,0,0,.05);
+}
+.search-label { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
+.search-row { display: flex; gap: 8px; }
+.search-input {
+  flex: 1; padding: 13px 18px; border: 2px solid #e5e7eb; border-radius: 12px;
+  font-size: 18px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+  color: #1a1f36; outline: none; background: #f9fafb;
+  transition: border-color .2s, box-shadow .2s;
+}
+.search-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12); background: #fff; }
+.search-input::placeholder { font-weight: 400; letter-spacing: 0; font-size: 14px; color: #c4c9d4; }
+.search-btn {
+  padding: 13px 22px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(99,102,241,.35);
+  transition: all .18s;
+}
+.search-btn:hover  { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,.42); }
+.search-btn:active { transform: translateY(0); }
+.search-btn:disabled { background: #d1d5db; box-shadow: none; cursor: not-allowed; transform: none; }
 
-  /* 航班头部 */
-  .flight-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .flight-number { font-size: 24px; font-weight: 800; color: #1a202c; }
-  .airline { font-size: 13px; color: #718096; background: #edf2f7; padding: 3px 10px; border-radius: 20px; }
+/* ---- Generic Card ---- */
+.card {
+  background: #fff; border-radius: 16px; padding: 20px 22px; margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.04);
+}
+.section-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 14px; }
 
-  /* 出发地→目的地路由 */
-  .route-block { margin-top: 14px; display: flex; align-items: flex-start; gap: 0; }
-  .route-endpoint { flex: 1; }
-  .route-endpoint.arr { text-align: right; }
-  .route-iata { font-size: 28px; font-weight: 800; color: #2d3748; line-height: 1; }
-  .route-name { font-size: 13px; color: #718096; margin-top: 3px; line-height: 1.4; }
-  .route-meta { font-size: 12px; color: #a0aec0; margin-top: 2px; }
-  .route-arrow-col { display: flex; flex-direction: column; align-items: center;
-                     padding: 0 12px; min-width: 60px; margin-top: 6px; }
-  .route-arrow-line { color: #cbd5e0; font-size: 20px; line-height: 1; }
-  .route-flight-time { font-size: 11px; color: #a0aec0; margin-top: 2px; white-space: nowrap; }
+/* ======================================================
+   BOARDING PASS CARD
+   ====================================================== */
+.bp-card {
+  background: linear-gradient(145deg, #1e3a8a 0%, #2e2888 40%, #4c1d95 100%);
+  border-radius: 20px; padding: 22px 24px 0; color: #fff; margin-bottom: 12px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(79,70,229,.38), 0 3px 10px rgba(0,0,0,.18);
+}
+.bp-card::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 10% 90%, rgba(99,102,241,.35) 0%, transparent 45%),
+    radial-gradient(circle at 90% 10%, rgba(167,139,250,.25) 0%, transparent 45%);
+  pointer-events: none;
+}
+.bp-inner { position: relative; z-index: 1; }
 
-  /* 时间行 */
-  .time-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid #edf2f7;
-              display: flex; flex-wrap: wrap; gap: 16px; }
-  .time-item { display: flex; flex-direction: column; gap: 2px; }
-  .time-label { font-size: 11px; color: #a0aec0; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
-  .time-value { font-size: 15px; font-weight: 700; color: #2d3748; }
-  .time-delay { font-size: 13px; font-weight: 600; color: #e53e3e; }
+/* Header row */
+.bp-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+.bp-flight-num { font-size: 22px; font-weight: 900; color: #fff; letter-spacing: -.5px; }
+.bp-airline-tag {
+  font-size: 12px; color: rgba(255,255,255,.8);
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  padding: 3px 10px; border-radius: 20px; font-weight: 600;
+}
+.bp-spacer { flex: 1; }
+.bp-status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.9);
+}
+.bp-status-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.6); flex-shrink: 0; }
+.bp-status-dot.active  { background: #4ade80; animation: pulse 1.5s infinite; }
+.bp-status-dot.landed  { background: #94a3b8; }
+.bp-status-dot.cancelled { background: #f87171; }
+.bp-status-dot.diverted  { background: #fbbf24; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
 
-  /* 登机口/行李 */
-  .gate-row { margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
-  .gate-badge { display: flex; align-items: center; gap: 6px; background: #ebf8ff;
-                border: 1px solid #bee3f8; border-radius: 8px; padding: 6px 12px; }
-  .gate-badge .gb-label { font-size: 11px; color: #2b6cb0; font-weight: 600; }
-  .gate-badge .gb-value { font-size: 14px; color: #1a365d; font-weight: 700; }
+.bp-delay-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(252,165,165,.18); border: 1px solid rgba(252,165,165,.35);
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #fca5a5;
+}
+.bp-early-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(110,231,183,.15); border: 1px solid rgba(110,231,183,.3);
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #6ee7b7;
+}
 
-  /* 状态标签 */
-  .status-badge { display: inline-flex; align-items: center; gap: 4px;
-                  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .status-scheduled .status-dot { background: #3182ce; }
-  .status-active .status-dot    { background: #38a169; animation: pulse 1.5s infinite; }
-  .status-landed .status-dot    { background: #718096; }
-  .status-cancelled .status-dot { background: #e53e3e; }
-  .status-diverted .status-dot  { background: #d69e2e; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .status-scheduled { background: #ebf8ff; color: #2b6cb0; }
-  .status-active     { background: #e6fffa; color: #276749; }
-  .status-landed     { background: #edf2f7; color: #4a5568; }
-  .status-cancelled  { background: #fff5f5; color: #c53030; }
-  .status-diverted   { background: #fffbeb; color: #b7791f; }
+/* Route section */
+.bp-route { display: flex; align-items: stretch; margin-bottom: 18px; }
+.bp-endpoint { flex: 1; }
+.bp-endpoint.right { text-align: right; }
+.bp-iata {
+  font-size: 52px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -2px;
+  text-shadow: 0 2px 12px rgba(0,0,0,.25);
+}
+.bp-city { font-size: 15px; font-weight: 700; color: rgba(255,255,255,.85); margin-top: 5px; }
+.bp-airport-name { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; line-height: 1.4; }
 
-  /* 风险卡片 */
-  .risk-card { border-radius: 16px; padding: 18px 22px; margin-bottom: 14px; }
-  .risk-card.low    { background: #f0fff4; border: 1.5px solid #9ae6b4; }
-  .risk-card.medium { background: #fffbeb; border: 1.5px solid #fbd38d; }
-  .risk-card.high   { background: #fff5f5; border: 1.5px solid #feb2b2; }
-  .risk-card.done   { background: #ebf8ff; border: 1.5px solid #90cdf4; }
+.bp-mid-col {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 0 12px; min-width: 96px; padding-bottom: 8px;
+}
+.bp-track-wrap { position: relative; width: 100%; display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.bp-track-seg {
+  flex: 1; height: 2px;
+  background: repeating-linear-gradient(90deg,
+    rgba(255,255,255,.55) 0px, rgba(255,255,255,.55) 5px,
+    transparent 5px, transparent 10px);
+}
+.bp-plane-bubble {
+  width: 38px; height: 38px;
+  background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.38);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.bp-duration-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5); text-align: center; white-space: nowrap; }
 
-  .risk-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .risk-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
-  .low .risk-dot    { background: #38a169; }
-  .medium .risk-dot { background: #d69e2e; }
-  .high .risk-dot   { background: #e53e3e; }
-  .done .risk-dot   { background: #3182ce; }
-  .risk-label { font-size: 18px; font-weight: 700; }
-  .low .risk-label    { color: #276749; }
-  .medium .risk-label { color: #744210; }
-  .high .risk-label   { color: #742a2a; }
-  .done .risk-label   { color: #2c5282; }
-  .risk-sub { font-size: 13px; margin-top: 2px; }
-  .low .risk-sub    { color: #48bb78; }
-  .medium .risk-sub { color: #ed8936; }
-  .high .risk-sub   { color: #fc8181; }
-  .done .risk-sub   { color: #63b3ed; }
+/* Progress bar (active flights) */
+.bp-progress { margin-top: 2px; margin-bottom: 16px; }
+.bp-prog-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.bp-prog-label { font-size: 10px; color: rgba(255,255,255,.45); }
+.bp-prog-label.center { color: rgba(255,255,255,.7); font-weight: 700; text-align: center; }
+.bp-prog-track { background: rgba(255,255,255,.12); border-radius: 99px; height: 8px; overflow: hidden; }
+.bp-prog-fill  {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #a5b4fc, #e879f9);
+  transition: width .8s ease;
+}
+.bp-prog-fill.live {
+  background: linear-gradient(90deg, #a5b4fc 0%, #e879f9 50%, #a5b4fc 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+@keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
 
-  /* 出行建议列表 */
-  .advice-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-  .advice-list li {
-    font-size: 14px; line-height: 1.55;
-    padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,.6);
-  }
-  .low .advice-list li    { border-left: 3px solid #68d391; color: #276749; }
-  .medium .advice-list li { border-left: 3px solid #f6ad55; color: #744210; }
-  .high .advice-list li   { border-left: 3px solid #fc8181; color: #742a2a; }
-  .done .advice-list li   { border-left: 3px solid #63b3ed; color: #2c5282; }
+/* Dashed tear-line divider */
+.bp-tear {
+  margin: 0 -24px;
+  position: relative;
+  height: 0;
+  border: none;
+  border-top: 1.5px dashed rgba(255,255,255,.18);
+}
+.bp-tear::before, .bp-tear::after {
+  content: '';
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #eef2ff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.1);
+}
+.bp-tear::before { left: -12px; }
+.bp-tear::after  { right: -12px; }
 
-  /* 天气 */
-  .weather-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 480px) { .weather-grid { grid-template-columns: 1fr; } }
-  .weather-card { background: #f7fafc; border-radius: 12px; padding: 16px; }
-  .weather-badge { font-size: 11px; font-weight: 700; color: #fff; padding: 2px 8px;
-                   border-radius: 4px; display: inline-block; margin-bottom: 6px; }
-  .weather-badge.dep { background: #4299e1; }
-  .weather-badge.arr { background: #9f7aea; }
-  .weather-airport { font-size: 13px; font-weight: 700; color: #2d3748; margin-bottom: 2px; line-height: 1.3; }
-  .weather-iata { font-size: 11px; color: #a0aec0; margin-bottom: 6px; }
-  .weather-temp { font-size: 28px; font-weight: 800; color: #2d3748; line-height: 1; }
-  .weather-desc { font-size: 13px; color: #718096; margin: 4px 0 10px; }
-  .weather-stats { display: flex; flex-wrap: wrap; gap: 6px; }
-  .stat { font-size: 12px; color: #718096; background: #edf2f7; padding: 3px 8px; border-radius: 6px; }
+/* Times section */
+.bp-times-section {
+  padding: 20px 0 0;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.bp-time-col { flex: 1; }
+.bp-time-col.right { text-align: right; }
+.bp-tlabel { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.bp-main-time { font-size: 38px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -1.5px; }
+.bp-main-time.delayed { color: #fcd34d; }
+.bp-main-time.early   { color: #6ee7b7; }
+.bp-main-time.on-time { color: #fff; }
+.bp-date { font-size: 11px; color: rgba(255,255,255,.45); font-weight: 600; margin-bottom: 3px; letter-spacing: .3px; }
+.bp-sched-time { font-size: 12px; color: rgba(255,255,255,.45); margin-top: 5px; }
+.bp-delay-info { font-size: 12px; font-weight: 700; margin-top: 3px; }
+.bp-delay-info.bad     { color: #fca5a5; }
+.bp-delay-info.good    { color: #6ee7b7; }
+.bp-delay-info.neutral { color: rgba(255,255,255,.4); }
 
-  /* 携带建议 */
-  .packing-section { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 480px) { .packing-section { grid-template-columns: 1fr; } }
-  .pack-group h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px;
-                   display: flex; align-items: center; gap: 6px; }
-  .pack-group.bring h4 { color: #276749; }
-  .pack-group.skip h4  { color: #742a2a; }
-  .pack-tag { display: inline-block; padding: 4px 10px; border-radius: 20px;
-              font-size: 13px; margin: 3px 4px 3px 0; }
-  .bring .pack-tag { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
-  .skip .pack-tag  { background: #fff5f5; color: #742a2a; border: 1px solid #feb2b2; }
+.bp-arrow-sep {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: rgba(255,255,255,.2); padding-top: 40px; min-width: 28px;
+}
 
-  .section-title { font-size: 12px; font-weight: 700; color: #a0aec0;
-                   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; }
+/* Gate / baggage row */
+.bp-gates { padding: 14px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.bp-gate-item {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 10px; padding: 7px 13px;
+}
+.bp-gate-icon  { font-size: 16px; line-height: 1; }
+.bp-gate-label { font-size: 10px; color: rgba(255,255,255,.45); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.bp-gate-val   { font-size: 17px; color: #fff; font-weight: 800; line-height: 1.2; }
 
-  .loading { text-align: center; padding: 40px; color: #718096; font-size: 15px; }
-  .loading-spinner { width: 36px; height: 36px; border: 3px solid #e2e8f0;
-                     border-top-color: #4299e1; border-radius: 50%;
-                     animation: spin .8s linear infinite; margin: 0 auto 12px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* Detail row (aircraft type, extra times) */
+.bp-detail-grid {
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding: 14px 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(90px,1fr)); gap: 12px;
+}
+.bp-detail-label { font-size: 10px; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+.bp-detail-val   { font-size: 15px; font-weight: 700; color: rgba(255,255,255,.9); }
+.bp-detail-val.delayed { color: #fcd34d; }
+.bp-detail-val.early   { color: #6ee7b7; }
 
-  .error-box { background: #fff5f5; border: 1.5px solid #feb2b2; border-radius: 12px;
-               padding: 16px 20px; color: #c53030; font-size: 14px; }
+/* Actions inside bp card */
+.bp-actions {
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding: 12px 0;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.bp-action-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,.2); background: rgba(255,255,255,.1);
+  font-size: 12px; font-weight: 600; color: rgba(255,255,255,.85);
+  cursor: pointer; transition: all .15s;
+}
+.bp-action-btn:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.35); }
+.bp-auto-label { font-size: 11px; color: rgba(255,255,255,.35); }
 
-  #result { display: none; }
+/* ---- Status Badge (light cards) ---- */
+.status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.status-dot   { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-scheduled { background: #eff6ff; color: #1d4ed8; }
+.status-scheduled .status-dot { background: #3b82f6; }
+.status-active    { background: #f0fdf4; color: #15803d; }
+.status-active .status-dot    { background: #22c55e; animation: pulse 1.5s infinite; }
+.status-landed    { background: #f9fafb; color: #6b7280; }
+.status-landed .status-dot    { background: #9ca3af; }
+.status-cancelled { background: #fef2f2; color: #dc2626; }
+.status-cancelled .status-dot { background: #ef4444; }
+.status-diverted  { background: #fffbeb; color: #b45309; }
+.status-diverted .status-dot  { background: #f59e0b; }
 
-  /* 历史记录 */
-  .history-section { margin-bottom: 18px; }
-  .history-label { font-size: 11px; font-weight: 700; color: #a0aec0;
-                   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-  .history-list { display: flex; flex-wrap: wrap; gap: 8px; }
-  .history-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 10px 5px 8px; border-radius: 20px; cursor: pointer;
-    border: 1px solid #e2e8f0; background: #fff; font-size: 13px;
-    transition: box-shadow .15s, border-color .15s;
-  }
-  .history-chip:hover { box-shadow: 0 1px 4px rgba(0,0,0,.12); border-color: #cbd5e0; }
-  .history-chip .hc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .hc-dot.low    { background: #38a169; }
-  .hc-dot.medium { background: #d69e2e; }
-  .hc-dot.high   { background: #e53e3e; }
-  .hc-dot.unknown { background: #a0aec0; }
-  .history-chip .hc-flight { font-weight: 700; color: #2d3748; }
-  .history-chip .hc-route  { font-size: 11px; color: #a0aec0; }
-  .history-chip .hc-del {
-    margin-left: 2px; color: #cbd5e0; font-size: 14px; line-height: 1;
-    background: none; border: none; cursor: pointer; padding: 0 2px;
-  }
-  .history-chip .hc-del:hover { color: #e53e3e; }
+/* ---- Risk Card ---- */
+.risk-card { border-radius: 16px; padding: 20px 22px; margin-bottom: 12px; }
+.risk-card.low    { background: linear-gradient(135deg,#f0fdf4,#dcfce7); border: 1.5px solid #86efac; }
+.risk-card.medium { background: linear-gradient(135deg,#fffbeb,#fef3c7); border: 1.5px solid #fcd34d; }
+.risk-card.high   { background: linear-gradient(135deg,#fff1f2,#ffe4e6); border: 1.5px solid #fca5a5; }
+.risk-card.done   { background: linear-gradient(135deg,#eff6ff,#dbeafe); border: 1.5px solid #93c5fd; }
+.risk-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.risk-icon-wrap { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 22px; }
+.low  .risk-icon-wrap { background: rgba(34,197,94,.15); }
+.medium .risk-icon-wrap { background: rgba(234,179,8,.15); }
+.high .risk-icon-wrap   { background: rgba(239,68,68,.15); }
+.done .risk-icon-wrap   { background: rgba(59,130,246,.15); }
+.risk-label { font-size: 17px; font-weight: 800; }
+.low    .risk-label { color: #15803d; }
+.medium .risk-label { color: #92400e; }
+.high   .risk-label { color: #991b1b; }
+.done   .risk-label { color: #1e40af; }
+.risk-sub { font-size: 13px; margin-top: 3px; }
+.low    .risk-sub { color: #16a34a; }
+.medium .risk-sub { color: #b45309; }
+.high   .risk-sub { color: #b91c1c; }
+.done   .risk-sub { color: #1d4ed8; }
+.advice-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.advice-list li {
+  font-size: 14px; line-height: 1.6; padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,.7);
+}
+.low    .advice-list li { border-left: 3px solid #4ade80; color: #166534; }
+.medium .advice-list li { border-left: 3px solid #fbbf24; color: #78350f; }
+.high   .advice-list li { border-left: 3px solid #f87171; color: #7f1d1d; }
+.done   .advice-list li { border-left: 3px solid #60a5fa; color: #1e3a8a; }
 
-  /* 用户栏 */
-  .user-bar {
-    display: flex; align-items: center; gap: 10px;
-    background: #fff; border-radius: 12px; padding: 10px 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 20px;
-  }
-  .user-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    object-fit: cover; flex-shrink: 0;
-  }
-  .user-name { font-size: 14px; color: #2d3748; font-weight: 600; flex: 1; }
-  .user-email { font-size: 12px; color: #a0aec0; }
-  .logout-btn, .login-btn {
-    font-size: 13px; color: #718096; text-decoration: none;
-    padding: 5px 12px; border-radius: 8px; border: 1px solid #e2e8f0;
-    transition: background .2s; white-space: nowrap; display: inline-flex; align-items: center;
-  }
-  .logout-btn:hover, .login-btn:hover { background: #f7fafc; color: #4a5568; }
+/* ---- Weather ---- */
+.weather-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .weather-grid { grid-template-columns: 1fr; } }
+.weather-card { background: linear-gradient(135deg,#f8faff,#f0f4ff); border: 1px solid #e8ecff; border-radius: 14px; padding: 16px; }
+.weather-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; color: #fff; letter-spacing: .3px; padding: 3px 9px; border-radius: 6px; margin-bottom: 8px; }
+.weather-badge.dep { background: linear-gradient(135deg,#4f46e5,#6366f1); }
+.weather-badge.arr { background: linear-gradient(135deg,#7c3aed,#9333ea); }
+.weather-airport { font-size: 12px; font-weight: 700; color: #374151; line-height: 1.3; }
+.weather-iata    { font-size: 10px; color: #9ca3af; margin-bottom: 8px; margin-top: 1px; }
+.weather-temp-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 3px; }
+.weather-temp    { font-size: 30px; font-weight: 900; color: #1a1f36; line-height: 1; }
+.weather-feels   { font-size: 12px; color: #9ca3af; }
+.weather-desc    { font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 10px; }
+.weather-stats   { display: flex; flex-wrap: wrap; gap: 5px; }
+.stat { font-size: 11px; color: #6b7280; background: rgba(255,255,255,.85); border: 1px solid #e5e7eb; padding: 3px 8px; border-radius: 6px; }
+
+/* ---- Packing ---- */
+.packing-section { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 480px) { .packing-section { grid-template-columns: 1fr; } }
+.pack-group h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+.pack-group.bring h4 { color: #15803d; }
+.pack-group.skip  h4 { color: #dc2626; }
+.pack-tag { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 3px 3px 3px 0; }
+.bring .pack-tag { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.skip  .pack-tag { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+/* ======================================================
+   DESTINATION GUIDE CARD
+   ====================================================== */
+.guide-card {
+  background: linear-gradient(145deg, #fffbeb 0%, #fff7ed 100%);
+  border: 1.5px solid #fed7aa;
+  border-radius: 16px; padding: 20px 22px; margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(251,146,60,.08);
+}
+.guide-city-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+}
+.guide-city-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, #ea580c, #f97316);
+  color: #fff; padding: 4px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 800; letter-spacing: .3px;
+}
+.guide-city-name { font-size: 17px; font-weight: 800; color: #9a3412; }
+.guide-city-sub  { font-size: 12px; color: #c2410c; margin-top: 1px; }
+
+.guide-section { margin-bottom: 18px; }
+.guide-section:last-child { margin-bottom: 0; }
+.guide-section-title {
+  font-size: 13px; font-weight: 800; color: #92400e;
+  display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1.5px solid rgba(251,146,60,.2);
+}
+
+/* Attractions */
+.guide-attraction-list { display: flex; flex-direction: column; gap: 8px; }
+.guide-attraction-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: rgba(255,255,255,.7); border-radius: 10px;
+  padding: 10px 12px; border: 1px solid rgba(251,191,36,.2);
+}
+.guide-attraction-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #fff; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+}
+.guide-attraction-name   { font-size: 14px; font-weight: 700; color: #78350f; margin-bottom: 3px; }
+.guide-attraction-reason { font-size: 12px; color: #92400e; line-height: 1.5; }
+
+/* Food */
+.guide-food-list { display: flex; flex-direction: column; gap: 8px; }
+.guide-food-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: rgba(255,255,255,.7); border-radius: 10px;
+  padding: 10px 12px; border: 1px solid rgba(251,191,36,.2);
+}
+.guide-food-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.guide-food-name  { font-size: 14px; font-weight: 700; color: #7c2d12; margin-bottom: 2px; }
+.guide-food-where { font-size: 12px; color: #9a3412; line-height: 1.5; }
+
+/* Tip */
+.guide-tip {
+  background: linear-gradient(135deg, rgba(251,191,36,.15), rgba(249,115,22,.1));
+  border: 1.5px solid rgba(251,191,36,.4);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.guide-tip-icon { font-size: 20px; flex-shrink: 0; line-height: 1.2; }
+.guide-tip-text { font-size: 13px; color: #78350f; line-height: 1.6; font-weight: 500; }
+
+/* ---- History ---- */
+.history-section { margin-bottom: 12px; }
+.history-label { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.history-list  { display: flex; flex-wrap: wrap; gap: 7px; }
+.history-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 10px; cursor: pointer;
+  border: 1.5px solid #e5e7eb; background: #fff; font-size: 13px;
+  transition: all .15s; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.history-chip:hover { box-shadow: 0 2px 10px rgba(99,102,241,.15); border-color: #c7d2fe; }
+.hc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.hc-dot.low     { background: #22c55e; }
+.hc-dot.medium  { background: #f59e0b; }
+.hc-dot.high    { background: #ef4444; }
+.hc-dot.unknown { background: #d1d5db; }
+.hc-flight { font-weight: 700; color: #1a1f36; }
+.hc-route  { font-size: 11px; color: #9ca3af; }
+.hc-del { margin-left: 2px; color: #d1d5db; font-size: 14px; line-height: 1; background: none; border: none; cursor: pointer; padding: 0 2px; transition: color .15s; }
+.hc-del:hover { color: #ef4444; }
+
+/* ---- Loading / Error ---- */
+.loading-card { text-align: center; padding: 48px 24px; }
+.loading-spinner { width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top-color: #6366f1; border-radius: 50%; animation: spin .75s linear infinite; margin: 0 auto 16px; }
+.loading-text { font-size: 14px; color: #9ca3af; font-weight: 500; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-box { background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 14px 18px; color: #dc2626; font-size: 14px; font-weight: 500; display: flex; align-items: flex-start; gap: 8px; }
+
+/* ---- Animations ---- */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+#result .bp-card, #result .risk-card, #result .card, #result .guide-card { animation: fadeUp .3s ease both; }
+#result > *:nth-child(1) { animation-delay: .03s; }
+#result > *:nth-child(2) { animation-delay: .09s; }
+#result > *:nth-child(3) { animation-delay: .15s; }
+#result > *:nth-child(4) { animation-delay: .21s; }
+#result > *:nth-child(5) { animation-delay: .27s; }
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+  .bp-iata { font-size: 40px; }
+  .bp-main-time { font-size: 30px; }
+  .app-header { padding-bottom: 72px; }
+}
 </style>
 </head>
 <body>
+
+<div class="app-header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">✈️ 航班延误风险助手</div>
+      <div class="header-sub">实时延误风险 · 两地天气 · 目的地指南</div>
+    </div>
+    <div class="header-badge">🌐 全球航班</div>
+  </div>
+</div>
+
 <div class="container">
+
+  <!-- User Bar -->
   <div class="user-bar">
     {% if user.is_authenticated %}
       {% if user.picture %}
       <img src="{{ user.picture }}" alt="头像" class="user-avatar" referrerpolicy="no-referrer">
       {% endif %}
-      <div style="flex:1;min-width:0">
+      <div class="user-info">
         <div class="user-name">{{ user.name }}</div>
         <div class="user-email">{{ user.email }}</div>
       </div>
       <a href="/logout" class="logout-btn">退出登录</a>
     {% else %}
-      <div style="flex:1;font-size:14px;color:#718096">航班延误风险助手</div>
+      <div style="flex:1;font-size:13px;color:#9ca3af;font-weight:500">登录以保存查询历史</div>
       <a href="/login" class="login-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        使用 Google 登录
+        <svg width="15" height="15" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Google 登录
       </a>
     {% endif %}
   </div>
 
-  <h1>✈️ 航班延误风险助手</h1>
-  <p class="subtitle">输入航班号，实时查询延误风险 + 目的地天气携带建议</p>
-
-  <div class="search-box">
-    <input id="flightInput" type="text" placeholder="输入航班号，如 MH386、CA1234、EK201"
-           autocomplete="off" autocorrect="off" spellcheck="false">
-    <button id="searchBtn" onclick="search()">查询</button>
+  <!-- Search -->
+  <div class="search-card">
+    <div class="search-label">🔍 输入航班号</div>
+    <div class="search-row">
+      <input id="flightInput" class="search-input" type="text"
+             placeholder="如 CA1234、EK201、MH386"
+             autocomplete="off" autocorrect="off" spellcheck="false">
+      <button id="searchBtn" class="search-btn" onclick="search()">查 询</button>
+    </div>
   </div>
 
+  <!-- History -->
   {% if user.is_authenticated %}
   <div id="history-section" class="history-section" style="display:none">
     <div class="history-label">最近查询</div>
@@ -239,209 +521,346 @@
   </div>
   {% endif %}
 
+  <!-- Loading -->
   <div id="loading" style="display:none" class="card">
-    <div class="loading">
+    <div class="loading-card">
       <div class="loading-spinner"></div>
-      正在查询实时数据...
+      <div class="loading-text">正在获取实时数据…</div>
     </div>
   </div>
 
+  <!-- Error -->
   <div id="error" style="display:none"></div>
+
+  <!-- Result -->
   <div id="result"></div>
+
 </div>
 
 <script>
 const input = document.getElementById("flightInput");
 input.addEventListener("keydown", e => { if (e.key === "Enter") search(); });
-
-// 历史记录
 const isLoggedIn = {{ 'true' if user.is_authenticated else 'false' }};
 
+// ---- History ----
 function loadHistory() {
   if (!isLoggedIn) return;
-  fetch("/history")
-    .then(r => r.json())
-    .then(records => renderHistory(records));
+  fetch("/history").then(r => r.json()).then(renderHistory);
 }
-
 function renderHistory(records) {
   const section = document.getElementById("history-section");
-  const list = document.getElementById("history-list");
+  const list    = document.getElementById("history-list");
   if (!section || !list) return;
   if (!records.length) { section.style.display = "none"; return; }
-
   list.innerHTML = records.map(r => `
     <span class="history-chip" onclick="searchFlight('${r.flight}')">
       <span class="hc-dot ${r.risk || 'unknown'}"></span>
       <span class="hc-flight">${r.flight}</span>
       <span class="hc-route">${r.dep_iata || ''}→${r.arr_iata || ''}</span>
-      <button class="hc-del" title="删除" onclick="deleteHistory(event,'${r.flight}')">×</button>
-    </span>
-  `).join("");
+      <button class="hc-del" onclick="deleteHistory(event,'${r.flight}')">×</button>
+    </span>`).join("");
   section.style.display = "block";
 }
-
-function searchFlight(flight) {
-  input.value = flight;
-  search();
-}
-
-function deleteHistory(e, flight) {
+function searchFlight(f) { input.value = f; search(); }
+function deleteHistory(e, f) {
   e.stopPropagation();
-  fetch(`/history/${flight}`, { method: "DELETE" })
-    .then(r => r.json())
-    .then(() => loadHistory());
+  fetch(`/history/${f}`, { method: "DELETE" }).then(() => loadHistory());
 }
-
 loadHistory();
 
+// ---- Constants ----
 const STATUS_MAP = {
-  scheduled: { label: "计划中", cls: "scheduled" },
-  active:    { label: "飞行中", cls: "active" },
-  landed:    { label: "已落地", cls: "landed" },
-  cancelled: { label: "已取消", cls: "cancelled" },
-  diverted:  { label: "已备降", cls: "diverted" },
+  scheduled: { label: "计划中",  cls: "scheduled" },
+  active:    { label: "飞行中",  cls: "active"    },
+  landed:    { label: "已落地",  cls: "landed"    },
+  cancelled: { label: "已取消",  cls: "cancelled" },
+  diverted:  { label: "已备降",  cls: "diverted"  },
 };
-
 const RISK_MAP = {
-  low:    { label: "🟢 低风险", sub: "两地天气良好，航班状态正常", cls: "low" },
-  medium: { label: "🟡 中等风险", sub: "存在一定延误可能，建议关注动态", cls: "medium" },
-  high:   { label: "🔴 高风险", sub: "延误概率较高，建议提前确认航班状态", cls: "high" },
-  done:   { label: "🔵 航班已完成", sub: "今日此航班已落地或取消", cls: "done" },
+  low:    { label: "低风险",    icon: "✅", sub: "两地天气良好，航班状态正常",         cls: "low"    },
+  medium: { label: "中等风险",  icon: "⚠️", sub: "存在一定延误可能，建议关注动态",     cls: "medium" },
+  high:   { label: "高风险",    icon: "🚨", sub: "延误概率较高，建议提前确认航班状态", cls: "high"   },
+  done:   { label: "航班已完成",icon: "🔵", sub: "今日此航班已落地或取消",            cls: "done"   },
 };
 
-function fmtTime(t) {
+// ---- Helpers ----
+function fmtTime(t) { return t ? t.substring(11, 16) : "—"; }
+function fmtDate(t) {
+  if (!t) return "";
+  const m = parseInt(t.substring(5, 7));
+  const d = parseInt(t.substring(8, 10));
+  return `${m}月${d}日`;
+}
+function fmtDateTime(t) {
   if (!t) return "—";
-  return t.substring(11, 16);
+  return `${fmtDate(t)} ${fmtTime(t)}`;
+}
+function timeDiffMin(t1, t2) {
+  if (!t1 || !t2) return 0;
+  return Math.round((new Date(t1) - new Date(t2)) / 60000);
+}
+function fmtDuration(ms) {
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  if (h > 0) return m > 0 ? `${h}小时${m}分` : `${h}小时`;
+  return `${m}分`;
+}
+function fmtDelay(min) {
+  if (!min || min === 0) return null;
+  const abs = Math.abs(min);
+  if (abs < 60) return `${abs} 分钟`;
+  const h = Math.floor(abs / 60), m = abs % 60;
+  return m > 0 ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
+}
+function flightProgress(depTime, arrTime) {
+  if (!depTime || !arrTime) return -1;
+  const now = Date.now(), dep = new Date(depTime).getTime(), arr = new Date(arrTime).getTime();
+  if (isNaN(dep) || isNaN(arr) || arr <= dep) return -1;
+  if (now < dep) return 0;
+  if (now > arr) return 100;
+  return Math.round((now - dep) / (arr - dep) * 100);
+}
+function timeClass(actual, scheduled) {
+  if (!actual || !scheduled) return "";
+  const d = timeDiffMin(actual, scheduled);
+  return d < -1 ? "early" : d > 1 ? "delayed" : "on-time";
+}
+function copyFlight(num, dep, arr, dt, at) {
+  const t = `航班 ${num}：${dep} → ${arr}\n计划起飞 ${dt}  计划到达 ${at}`;
+  navigator.clipboard.writeText(t).then(() => {
+    const btn = document.getElementById("copyBtn");
+    if (btn) { btn.textContent = "✓ 已复制"; setTimeout(() => { btn.textContent = "📋 复制"; }, 2000); }
+  }).catch(() => {});
 }
 
-// 比较两个时间字符串，返回颜色：早于基准 → 绿色，晚于基准 → 橙色，相同 → 默认
-function timeColor(actual, scheduled) {
-  if (!actual || !scheduled) return "#2d3748";
-  return actual < scheduled ? "#38a169" : actual > scheduled ? "#d69e2e" : "#2d3748";
+let autoRefreshTimer = null;
+let progressTimer    = null;
+
+function clearProgressTimer() {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+function clearAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  clearProgressTimer();
 }
 
+function startProgressAnimation(depTime, arrTime) {
+  clearProgressTimer();
+  const depMs = new Date(depTime).getTime();
+  const arrMs = new Date(arrTime).getTime();
+  function tick() {
+    const fill     = document.getElementById("progFill");
+    const label    = document.getElementById("progLabel");
+    const elapsedEl  = document.getElementById("progElapsed");
+    const remainEl   = document.getElementById("progRemaining");
+    if (!fill) { clearProgressTimer(); return; }
+    const now  = Date.now();
+    const prog = flightProgress(depTime, arrTime);
+    const pct  = Math.max(0, Math.min(100, prog < 0 ? 0 : prog));
+    fill.style.width = pct + "%";
+    if (label)    label.textContent    = `飞行进度 ${pct}%`;
+    if (elapsedEl)  elapsedEl.textContent  = fmtDuration(Math.max(0, now - depMs)) + " 已飞";
+    if (remainEl)   remainEl.textContent   = "剩余 " + fmtDuration(Math.max(0, arrMs - now));
+    if (pct >= 100) clearProgressTimer();
+  }
+  tick();
+  progressTimer = setInterval(tick, 1000);
+}
+
+// ---- Search ----
 function search() {
+  clearAutoRefresh();
   const flight = input.value.trim().toUpperCase().replace(/\s/g, "");
   if (!flight) { input.focus(); return; }
 
   document.getElementById("loading").style.display = "block";
-  document.getElementById("error").style.display = "none";
-  document.getElementById("result").style.display = "none";
-  document.getElementById("searchBtn").disabled = true;
+  document.getElementById("error").style.display   = "none";
+  document.getElementById("result").style.display  = "none";
+  document.getElementById("searchBtn").disabled    = true;
 
   fetch("/query", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ flight })
   })
   .then(r => r.json())
   .then(data => {
     document.getElementById("loading").style.display = "none";
-    document.getElementById("searchBtn").disabled = false;
-
+    document.getElementById("searchBtn").disabled    = false;
     if (data.error) {
-      const errEl = document.getElementById("error");
-      errEl.innerHTML = `<div class="error-box">⚠️ ${data.error}</div>`;
-      errEl.style.display = "block";
+      document.getElementById("error").innerHTML     = `<div class="error-box">⚠️ ${data.error}</div>`;
+      document.getElementById("error").style.display = "block";
       return;
     }
     renderResult(data);
     loadHistory();
+    if (data.flight.status === "active") {
+      autoRefreshTimer = setInterval(() => {
+        const f = input.value.trim().toUpperCase().replace(/\s/g, "");
+        if (!f) return;
+        fetch("/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ flight: f }) })
+          .then(r => r.json()).then(d => { if (!d.error) renderResult(d); });
+      }, 60000);
+    }
   })
-  .catch(err => {
+  .catch(() => {
     document.getElementById("loading").style.display = "none";
-    document.getElementById("searchBtn").disabled = false;
-    const errEl = document.getElementById("error");
-    errEl.innerHTML = `<div class="error-box">⚠️ 网络错误，请重试</div>`;
-    errEl.style.display = "block";
+    document.getElementById("searchBtn").disabled    = false;
+    document.getElementById("error").innerHTML       = `<div class="error-box">⚠️ 网络错误，请重试</div>`;
+    document.getElementById("error").style.display   = "block";
   });
 }
 
+// ---- Render ----
 function renderResult(d) {
-  const f = d.flight;
-  const dep = d.dep_weather;
-  const arr = d.arr_weather;
+  const f      = d.flight;
+  const depWx  = d.dep_weather;
+  const arrWx  = d.arr_weather;
   const status = STATUS_MAP[f.status] || { label: f.status, cls: "scheduled" };
-
   const isDone = ["landed", "cancelled", "diverted"].includes(f.status);
-  const riskKey = isDone ? "done" : d.risk;
-  const risk = RISK_MAP[riskKey] || RISK_MAP.low;
+  const risk   = RISK_MAP[isDone ? "done" : d.risk] || RISK_MAP.low;
 
-  // 登机口/行李信息
-  const gateHtml = buildGateRow(f);
+  const depDelay = f.delay     || 0;
+  const arrDelay = f.arr_delay || 0;
 
-  // 出行建议
-  const adviceHtml = (d.advice && d.advice.length) ?
-    `<ul class="advice-list">${d.advice.map(a => `<li>${a}</li>`).join("")}</ul>` : "";
+  // Main display times
+  const depMain = f.dep_actual || f.dep_estimated || f.dep_scheduled;
+  const arrMain = f.arr_actual || f.arr_estimated || f.arr_scheduled;
+  const depCls  = f.dep_actual ? timeClass(f.dep_actual, f.dep_scheduled)
+                : f.dep_estimated ? timeClass(f.dep_estimated, f.dep_scheduled) : "";
+  const arrCls  = f.arr_actual ? timeClass(f.arr_actual, f.arr_scheduled)
+                : f.arr_estimated ? timeClass(f.arr_estimated, f.arr_scheduled) : "";
+
+  // Progress bar
+  const prog = f.status === "active"
+    ? flightProgress(f.dep_actual || f.dep_scheduled, f.arr_estimated || f.arr_scheduled)
+    : -1;
+
+  // Header badges
+  const delayBadges = [];
+  if (depDelay > 0) delayBadges.push(`<span class="bp-delay-badge">🕐 起飞延误 ${fmtDelay(depDelay)}</span>`);
+  if (arrDelay > 0) delayBadges.push(`<span class="bp-delay-badge">🛬 落地延误 ${fmtDelay(arrDelay)}</span>`);
+  if (depDelay < 0) delayBadges.push(`<span class="bp-early-badge">⚡ 提早出发 ${fmtDelay(-depDelay)}</span>`);
+  if (arrDelay < 0) delayBadges.push(`<span class="bp-early-badge">⚡ 提早落地 ${fmtDelay(-arrDelay)}</span>`);
+
+  // Dep/arr delay annotation text
+  function delayLine(delay, cls) {
+    if (delay > 0) return `<div class="bp-delay-info bad">延误 ${fmtDelay(delay)}</div>`;
+    if (delay < 0) return `<div class="bp-delay-info good">提早 ${fmtDelay(-delay)}</div>`;
+    return `<div class="bp-delay-info neutral">准点</div>`;
+  }
+
+  // Gate items
+  const gateItems = [];
+  if (f.dep_terminal) gateItems.push(`<div class="bp-gate-item"><div class="bp-gate-icon">🏢</div><div><div class="bp-gate-label">出发航站楼</div><div class="bp-gate-val">${f.dep_terminal}</div></div></div>`);
+  if (f.dep_gate)     gateItems.push(`<div class="bp-gate-item"><div class="bp-gate-icon">🚪</div><div><div class="bp-gate-label">登机口</div><div class="bp-gate-val">${f.dep_gate}</div></div></div>`);
+  if (f.arr_terminal) gateItems.push(`<div class="bp-gate-item"><div class="bp-gate-icon">🏢</div><div><div class="bp-gate-label">到达航站楼</div><div class="bp-gate-val">${f.arr_terminal}</div></div></div>`);
+  if (f.arr_baggage)  gateItems.push(`<div class="bp-gate-item"><div class="bp-gate-icon">🧳</div><div><div class="bp-gate-label">行李转盘</div><div class="bp-gate-val">${f.arr_baggage}</div></div></div>`);
+
+  // Extra time details grid
+  const detailItems = [];
+  if (f.dep_estimated && f.dep_estimated !== f.dep_scheduled)
+    detailItems.push(`<div class="bp-detail-item"><div class="bp-detail-label">预计起飞</div><div class="bp-detail-val ${timeClass(f.dep_estimated, f.dep_scheduled)}" style="font-size:13px">${fmtDateTime(f.dep_estimated)}</div></div>`);
+  if (f.arr_estimated && f.arr_estimated !== f.arr_scheduled)
+    detailItems.push(`<div class="bp-detail-item"><div class="bp-detail-label">预计到达</div><div class="bp-detail-val ${timeClass(f.arr_estimated, f.arr_scheduled)}" style="font-size:13px">${fmtDateTime(f.arr_estimated)}</div></div>`);
+  if (f.dep_actual)
+    detailItems.push(`<div class="bp-detail-item"><div class="bp-detail-label">实际起飞</div><div class="bp-detail-val ${timeClass(f.dep_actual, f.dep_scheduled)}" style="font-size:13px">${fmtDateTime(f.dep_actual)}</div></div>`);
+  if (f.arr_actual)
+    detailItems.push(`<div class="bp-detail-item"><div class="bp-detail-label">实际到达</div><div class="bp-detail-val ${timeClass(f.arr_actual, f.arr_scheduled)}" style="font-size:13px">${fmtDateTime(f.arr_actual)}</div></div>`);
+  if (f.aircraft_type)
+    detailItems.push(`<div class="bp-detail-item"><div class="bp-detail-label">机型</div><div class="bp-detail-val" style="letter-spacing:.5px">${f.aircraft_type}</div></div>`);
+
+  const adviceHtml = (d.advice && d.advice.length)
+    ? `<ul class="advice-list">${d.advice.map(a => `<li>${a}</li>`).join("")}</ul>` : "";
 
   const html = `
-    <!-- 航班信息卡 -->
-    <div class="card">
-      <div class="flight-header">
-        <span class="flight-number">${f.number}</span>
-        <span class="airline">${f.airline}</span>
-        <span class="status-badge status-${status.cls}">
-          <span class="status-dot"></span>${status.label}
-        </span>
-        ${f.delay > 0 ? `<span class="time-delay">延误 ${f.delay} 分</span>` : ""}
-      </div>
+    <!-- ===== Boarding Pass ===== -->
+    <div class="bp-card">
+      <div class="bp-inner">
+        <!-- Header -->
+        <div class="bp-header">
+          <span class="bp-flight-num">${f.number}</span>
+          <span class="bp-airline-tag">${f.airline || '未知航空'}</span>
+          <span class="bp-spacer"></span>
+          <span class="bp-status-badge">
+            <span class="bp-status-dot ${status.cls}"></span>${status.label}
+          </span>
+          ${delayBadges.join("")}
+        </div>
 
-      <!-- 出发地 → 目的地 -->
-      <div class="route-block">
-        <div class="route-endpoint dep">
-          <div class="route-iata">${f.dep_iata}</div>
-          <div class="route-name">${f.dep_airport_zh}</div>
+        <!-- Route -->
+        <div class="bp-route">
+          <div class="bp-endpoint">
+            <div class="bp-iata">${f.dep_iata || '---'}</div>
+            <div class="bp-city">${f.dep_city_zh || f.dep_city || ''}</div>
+            <div class="bp-airport-name">${f.dep_airport_zh}</div>
+          </div>
+          <div class="bp-mid-col">
+            <div class="bp-track-wrap">
+              <div class="bp-track-seg"></div>
+              <div class="bp-plane-bubble">✈️</div>
+              <div class="bp-track-seg"></div>
+            </div>
+            ${f.flight_duration ? `<div class="bp-duration-label">${f.flight_duration}</div>` : ""}
+          </div>
+          <div class="bp-endpoint right">
+            <div class="bp-iata">${f.arr_iata || '---'}</div>
+            <div class="bp-city">${f.arr_city_zh || f.arr_city || ''}</div>
+            <div class="bp-airport-name">${f.arr_airport_zh}</div>
+          </div>
         </div>
-        <div class="route-arrow-col">
-          <div class="route-arrow-line">→</div>
+
+        ${prog >= 0 ? `
+        <div class="bp-progress">
+          <div class="bp-prog-header">
+            <span class="bp-prog-label" id="progElapsed">${f.dep_iata}</span>
+            <span class="bp-prog-label center" id="progLabel">飞行进度 ${prog}%</span>
+            <span class="bp-prog-label" style="text-align:right" id="progRemaining">${f.arr_iata}</span>
+          </div>
+          <div class="bp-prog-track"><div class="bp-prog-fill live" id="progFill" style="width:${prog}%"></div></div>
+        </div>` : ""}
+
+        <!-- Divider -->
+        <div class="bp-tear"></div>
+
+        <!-- Times -->
+        <div class="bp-times-section">
+          <div class="bp-time-col">
+            <div class="bp-tlabel">出发</div>
+            ${fmtDate(depMain) ? `<div class="bp-date">${fmtDate(depMain)}</div>` : ""}
+            <div class="bp-main-time ${depCls}">${fmtTime(depMain)}</div>
+            <div class="bp-sched-time">计划 ${fmtDateTime(f.dep_scheduled)}</div>
+            ${delayLine(depDelay, "dep")}
+          </div>
+          <div class="bp-arrow-sep">→</div>
+          <div class="bp-time-col right">
+            <div class="bp-tlabel">到达</div>
+            ${fmtDate(arrMain) ? `<div class="bp-date">${fmtDate(arrMain)}</div>` : ""}
+            <div class="bp-main-time ${arrCls}">${fmtTime(arrMain)}</div>
+            <div class="bp-sched-time">计划 ${fmtDateTime(f.arr_scheduled)}</div>
+            ${delayLine(arrDelay, "arr")}
+          </div>
         </div>
-        <div class="route-endpoint arr">
-          <div class="route-iata">${f.arr_iata}</div>
-          <div class="route-name">${f.arr_airport_zh}</div>
+
+        ${gateItems.length ? `<div class="bp-gates">${gateItems.join("")}</div>` : ""}
+        ${detailItems.length ? `<div class="bp-detail-grid">${detailItems.join("")}</div>` : ""}
+
+        <!-- Actions -->
+        <div class="bp-actions">
+          <button class="bp-action-btn" id="copyBtn"
+            onclick="copyFlight('${f.number}','${f.dep_iata}','${f.arr_iata}','${fmtTime(f.dep_scheduled)}','${fmtTime(f.arr_scheduled)}')">
+            📋 复制
+          </button>
+          ${f.status === "active" ? `
+          <button class="bp-action-btn" onclick="search()">🔄 刷新</button>
+          <span class="bp-auto-label">· 60 秒自动刷新</span>` : ""}
         </div>
       </div>
-
-      <!-- 时间信息 -->
-      <div class="time-row">
-        <div class="time-item">
-          <span class="time-label">计划起飞</span>
-          <span class="time-value">${fmtTime(f.dep_scheduled)}</span>
-        </div>
-        ${f.dep_estimated && f.dep_estimated !== f.dep_scheduled ? `
-        <div class="time-item">
-          <span class="time-label">预计起飞</span>
-          <span class="time-value" style="color:#d69e2e">${fmtTime(f.dep_estimated)}</span>
-        </div>` : ""}
-        ${f.dep_actual ? `
-        <div class="time-item">
-          <span class="time-label">实际起飞</span>
-          <span class="time-value" style="color:${timeColor(f.dep_actual, f.dep_scheduled)}">${fmtTime(f.dep_actual)}</span>
-        </div>` : ""}
-        <div class="time-item">
-          <span class="time-label">计划到达</span>
-          <span class="time-value">${fmtTime(f.arr_scheduled)}</span>
-        </div>
-        ${f.arr_estimated && f.arr_estimated !== f.arr_scheduled ? `
-        <div class="time-item">
-          <span class="time-label">预计到达</span>
-          <span class="time-value" style="color:${timeColor(f.arr_estimated, f.arr_scheduled)}">${fmtTime(f.arr_estimated)}</span>
-        </div>` : ""}
-        ${f.arr_actual ? `
-        <div class="time-item">
-          <span class="time-label">实际到达</span>
-          <span class="time-value" style="color:${timeColor(f.arr_actual, f.arr_scheduled)}">${fmtTime(f.arr_actual)}</span>
-        </div>` : ""}
-      </div>
-
-      <!-- 登机口 / 行李转盘 -->
-      ${gateHtml}
     </div>
 
-    <!-- 延误风险 + 出行建议 -->
+    <!-- Risk + Advice -->
     <div class="risk-card ${risk.cls}">
       <div class="risk-header">
-        <div class="risk-dot"></div>
+        <div class="risk-icon-wrap">${risk.icon}</div>
         <div>
           <div class="risk-label">${risk.label}</div>
           <div class="risk-sub">${risk.sub}</div>
@@ -450,60 +869,65 @@ function renderResult(d) {
       ${adviceHtml}
     </div>
 
-    <!-- 天气 -->
+    <!-- Weather -->
     <div class="card">
-      <div class="section-title">实时天气</div>
+      <div class="section-title">🌤 实时天气</div>
       <div class="weather-grid">
-        ${renderWeather(dep, f.dep_airport_zh, f.dep_iata, "dep", "出发地")}
-        ${renderWeather(arr, f.arr_airport_zh, f.arr_iata, "arr", "目的地")}
+        ${renderWeather(depWx, f.dep_airport_zh, f.dep_iata, "dep", "出发地")}
+        ${renderWeather(arrWx, f.arr_airport_zh, f.arr_iata, "arr", "目的地")}
       </div>
     </div>
 
-    <!-- 目的地携带建议 -->
+    <!-- Packing -->
     ${d.bring.length || d.skip.length ? `
     <div class="card">
-      <div class="section-title">📍 目的地携带建议</div>
+      <div class="section-title">🎒 目的地携带建议</div>
       <div class="packing-section">
         <div class="pack-group bring">
-          <h4>✅ 建议带</h4>
+          <h4>✅ 建议携带</h4>
           ${d.bring.map(i => `<span class="pack-tag">${i}</span>`).join("")}
         </div>
         <div class="pack-group skip">
-          <h4>❌ 不需要带</h4>
+          <h4>❌ 无需携带</h4>
           ${d.skip.map(i => `<span class="pack-tag">${i}</span>`).join("")}
         </div>
       </div>
     </div>` : ""}
+
+    <!-- Destination Guide -->
+    ${renderGuide(d.guide, f.arr_city_zh || f.arr_city || f.arr_iata)}
   `;
 
   const el = document.getElementById("result");
   el.innerHTML = html;
   el.style.display = "block";
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  // Start live progress ticker for active flights
+  if (f.status === "active" && prog >= 0) {
+    const depT = f.dep_actual || f.dep_scheduled;
+    const arrT = f.arr_estimated || f.arr_scheduled;
+    startProgressAnimation(depT, arrT);
+  }
 }
 
-function buildGateRow(f) {
-  const items = [];
-  if (f.dep_terminal) items.push(`<div class="gate-badge"><span class="gb-label">出发航站楼</span><span class="gb-value">${f.dep_terminal}</span></div>`);
-  if (f.dep_gate)     items.push(`<div class="gate-badge"><span class="gb-label">登机口</span><span class="gb-value">${f.dep_gate}</span></div>`);
-  if (f.arr_terminal) items.push(`<div class="gate-badge"><span class="gb-label">到达航站楼</span><span class="gb-value">${f.arr_terminal}</span></div>`);
-  if (f.arr_baggage)  items.push(`<div class="gate-badge"><span class="gb-label">行李转盘</span><span class="gb-value">${f.arr_baggage}</span></div>`);
-  return items.length ? `<div class="gate-row">${items.join("")}</div>` : "";
-}
-
-function renderWeather(wx, airportName, iata, type, label) {
+function renderWeather(wx, airport, iata, type, label) {
   if (!wx) return `
     <div class="weather-card">
       <span class="weather-badge ${type}">${label}</span>
-      <div class="weather-airport">${airportName}</div>
+      <div class="weather-airport">${airport}</div>
       <div class="weather-iata">${iata}</div>
-      <div style="color:#a0aec0;font-size:13px;margin-top:8px">天气数据暂不可用</div>
+      <div style="color:#9ca3af;font-size:13px;margin-top:10px">天气数据暂不可用</div>
     </div>`;
   return `
     <div class="weather-card">
       <span class="weather-badge ${type}">${label}</span>
-      <div class="weather-airport">${airportName}</div>
+      <div class="weather-airport">${airport}</div>
       <div class="weather-iata">${iata}</div>
-      <div class="weather-temp">${wx.temp}°C</div>
+      <div class="weather-temp-row">
+        <div class="weather-temp">${wx.temp}°</div>
+        <div class="weather-feels">体感 ${wx.feels}°C</div>
+      </div>
       <div class="weather-desc">${wx.desc}</div>
       <div class="weather-stats">
         <span class="stat">💧 湿度 ${wx.humidity}%</span>
@@ -512,6 +936,61 @@ function renderWeather(wx, airportName, iata, type, label) {
         ${parseFloat(wx.precip) > 0 ? `<span class="stat">🌧 降水 ${wx.precip} mm</span>` : ""}
       </div>
     </div>`;
+}
+
+function renderGuide(guide, cityName) {
+  if (!guide) return "";
+  const icons = ["🥇","🥈","🥉"];
+  const foodIcons = ["🍜","🍱","🥘"];
+  return `
+    <div class="guide-card">
+      <div class="guide-city-header">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="guide-city-badge">📍 目的地</span>
+            <span class="guide-city-name">${cityName}</span>
+          </div>
+          <div class="guide-city-sub">落地后你不能错过的体验</div>
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <div class="guide-section-title">🏖️ 必去景点 Top 3</div>
+        <div class="guide-attraction-list">
+          ${guide.attractions.map((a, i) => `
+          <div class="guide-attraction-item">
+            <div class="guide-attraction-num">${i + 1}</div>
+            <div>
+              <div class="guide-attraction-name">${a[0]}</div>
+              <div class="guide-attraction-reason">${a[1]}</div>
+            </div>
+          </div>`).join("")}
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <div class="guide-section-title">🍜 必吃美食 Top 3</div>
+        <div class="guide-food-list">
+          ${guide.food.map((item, i) => `
+          <div class="guide-food-item">
+            <div class="guide-food-icon">${foodIcons[i] || "🍽️"}</div>
+            <div>
+              <div class="guide-food-name">${item[0]}</div>
+              <div class="guide-food-where">${item[1]}</div>
+            </div>
+          </div>`).join("")}
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <div class="guide-section-title">💡 当地小贴士</div>
+        <div class="guide-tip">
+          <div class="guide-tip-icon">💡</div>
+          <div class="guide-tip-text">${guide.tip}</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 </script>
 </body>
