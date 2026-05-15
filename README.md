@@ -61,7 +61,7 @@ OAUTHLIB_INSECURE_TRANSPORT=1
 python web/app.py
 ```
 
-打开浏览器访问 [http://127.0.0.1:5000](http://127.0.0.1:5000)
+打开浏览器访问 [https://flight-delay-risk-production-58b5.up.railway.app/](https://flight-delay-risk-production-58b5.up.railway.app/)
 
 ---
 
