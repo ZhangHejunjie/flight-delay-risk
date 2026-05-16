@@ -321,6 +321,29 @@ body {
 .high   .advice-list li { border-left: 3px solid #f87171; color: #7f1d1d; }
 .done   .advice-list li { border-left: 3px solid #60a5fa; color: #1e3a8a; }
 
+/* ---- Pickup Card ---- */
+.pickup-card {
+  background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1.5px solid #7dd3fc;
+  border-radius: 16px; padding: 20px 22px; margin-bottom: 12px;
+}
+.pickup-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.pickup-icon { width: 46px; height: 46px; border-radius: 12px; background: rgba(14,165,233,.15);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.pickup-title { font-size: 17px; font-weight: 800; color: #0c4a6e; }
+.pickup-sub   { font-size: 13px; color: #0369a1; margin-top: 3px; }
+.pickup-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.pickup-stat  { background: rgba(255,255,255,.75); border-radius: 10px; padding: 10px 13px; }
+.pickup-stat-label { font-size: 11px; color: #0369a1; font-weight: 700; margin-bottom: 4px; }
+.pickup-stat-val   { font-size: 18px; font-weight: 800; color: #0c4a6e; }
+.pickup-stat-sub   { font-size: 11px; color: #0284c7; margin-top: 2px; }
+.pickup-tips { display: flex; flex-direction: column; gap: 8px; }
+.pickup-tips li {
+  font-size: 13px; line-height: 1.6; padding: 9px 13px; border-radius: 9px;
+  background: rgba(255,255,255,.7); border-left: 3px solid #38bdf8; color: #0c4a6e;
+  list-style: none;
+}
+
 /* ---- Weather ---- */
 .weather-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 480px) { .weather-grid { grid-template-columns: 1fr; } }
@@ -612,10 +635,13 @@ function fmtDelay(min) {
   const h = Math.floor(abs / 60), m = abs % 60;
   return m > 0 ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
 }
-function flightProgress(depTime, arrTime) {
+function flightProgress(depTime, arrTime, depOffsetMin, arrOffsetMin) {
   if (!depTime || !arrTime) return -1;
-  const now = Date.now(), dep = new Date(depTime).getTime(), arr = new Date(arrTime).getTime();
+  // AviationStack returns local time labeled as +00:00; subtract the real UTC offset to get true UTC
+  const dep = new Date(depTime).getTime() - (depOffsetMin || 0) * 60000;
+  const arr = new Date(arrTime).getTime() - (arrOffsetMin || 0) * 60000;
   if (isNaN(dep) || isNaN(arr) || arr <= dep) return -1;
+  const now = Date.now();
   if (now < dep) return 0;
   if (now > arr) return 100;
   return Math.round((now - dep) / (arr - dep) * 100);
@@ -644,10 +670,10 @@ function clearAutoRefresh() {
   clearProgressTimer();
 }
 
-function startProgressAnimation(depTime, arrTime) {
+function startProgressAnimation(depTime, arrTime, depOffsetMin, arrOffsetMin) {
   clearProgressTimer();
-  const depMs = new Date(depTime).getTime();
-  const arrMs = new Date(arrTime).getTime();
+  const depMs = new Date(depTime).getTime() - (depOffsetMin || 0) * 60000;
+  const arrMs = new Date(arrTime).getTime() - (arrOffsetMin || 0) * 60000;
   function tick() {
     const fill     = document.getElementById("progFill");
     const label    = document.getElementById("progLabel");
@@ -655,7 +681,7 @@ function startProgressAnimation(depTime, arrTime) {
     const remainEl   = document.getElementById("progRemaining");
     if (!fill) { clearProgressTimer(); return; }
     const now  = Date.now();
-    const prog = flightProgress(depTime, arrTime);
+    const prog = flightProgress(depTime, arrTime, depOffsetMin, arrOffsetMin);
     const pct  = Math.max(0, Math.min(100, prog < 0 ? 0 : prog));
     fill.style.width = pct + "%";
     if (label)    label.textContent    = `飞行进度 ${pct}%`;
@@ -732,7 +758,7 @@ function renderResult(d) {
 
   // Progress bar
   const prog = f.status === "active"
-    ? flightProgress(f.dep_actual || f.dep_scheduled, f.arr_estimated || f.arr_scheduled)
+    ? flightProgress(f.dep_actual || f.dep_scheduled, f.arr_estimated || f.arr_scheduled, f.dep_offset_min, f.arr_offset_min)
     : -1;
 
   // Header badges
@@ -869,6 +895,9 @@ function renderResult(d) {
       ${adviceHtml}
     </div>
 
+    <!-- Pickup -->
+    ${renderPickup(d.pickup, f)}
+
     <!-- Weather -->
     <div class="card">
       <div class="section-title">🌤 实时天气</div>
@@ -907,7 +936,7 @@ function renderResult(d) {
   if (f.status === "active" && prog >= 0) {
     const depT = f.dep_actual || f.dep_scheduled;
     const arrT = f.arr_estimated || f.arr_scheduled;
-    startProgressAnimation(depT, arrT);
+    startProgressAnimation(depT, arrT, f.dep_offset_min, f.arr_offset_min);
   }
 }
 
@@ -936,6 +965,38 @@ function renderWeather(wx, airport, iata, type, label) {
         ${parseFloat(wx.precip) > 0 ? `<span class="stat">🌧 降水 ${wx.precip} mm</span>` : ""}
       </div>
     </div>`;
+}
+
+function renderPickup(p, f) {
+  if (!p) return "";
+  const loc  = p.location || "请留意到达大厅指示牌";
+  const time = p.arr_time || "—";
+  const delayBadge = p.arr_delay > 0
+    ? `<span style="font-size:11px;background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 7px;margin-left:6px;font-weight:700">延误 ${p.arr_delay} 分钟</span>` : "";
+  const tipsHtml = (p.tips || []).map(t => `<li>${t}</li>`).join("");
+  return `
+  <div class="pickup-card">
+    <div class="pickup-header">
+      <div class="pickup-icon">🚗</div>
+      <div>
+        <div class="pickup-title">接机指引</div>
+        <div class="pickup-sub">${f.arr_city_zh || f.arr_iata} · ${p.clearance_label}</div>
+      </div>
+    </div>
+    <div class="pickup-grid">
+      <div class="pickup-stat">
+        <div class="pickup-stat-label">预计落地</div>
+        <div class="pickup-stat-val">${time}${delayBadge}</div>
+        <div class="pickup-stat-sub">出关约 ${p.clearance_lo}–${p.clearance_hi} 分钟</div>
+      </div>
+      <div class="pickup-stat">
+        <div class="pickup-stat-label">等候地点</div>
+        <div class="pickup-stat-val" style="font-size:14px;line-height:1.4">${loc}</div>
+        <div class="pickup-stat-sub">到达出口处等候</div>
+      </div>
+    </div>
+    <ul class="pickup-tips">${tipsHtml}</ul>
+  </div>`;
 }
 
 function renderGuide(guide, cityName) {

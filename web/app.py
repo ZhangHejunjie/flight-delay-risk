@@ -3,6 +3,7 @@ import json
 import requests
 from pathlib import Path
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from authlib.integrations.flask_client import OAuth
@@ -29,6 +30,7 @@ google = oauth.register(
 )
 
 AVIATIONSTACK_KEY = os.environ.get("AVIATIONSTACK_KEY", "68c479c674a89fee0639d9433cad909a")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 HISTORY_FILE = Path(__file__).parent / "data" / "history.json"
 HISTORY_MAX = 15
@@ -1187,6 +1189,17 @@ def load_user(user_id):
     return _users.get(user_id)
 
 
+def get_utc_offset_min(tz_name):
+    """Return the current UTC offset in minutes for a timezone name."""
+    if not tz_name:
+        return 0
+    try:
+        zone = ZoneInfo(tz_name)
+        return int(datetime.now(zone).utcoffset().total_seconds() / 60)
+    except Exception:
+        return 0
+
+
 def calc_duration(dep_sched, arr_sched):
     if not dep_sched or not arr_sched:
         return ""
@@ -1322,6 +1335,70 @@ def build_advice(flight, risk, dep_wx, arr_wx):
     return advice
 
 
+DOMESTIC_CN = {
+    "PEK","PKX","SHA","PVG","CAN","SZX","CTU","TFU","KMG","XIY","WUH","NKG",
+    "HGH","XMN","CSX","DLC","SHE","HRB","TSN","TAO","URC","KRY","LHW","SYX",
+    "HAK","NNG","KWE","KHN","CGO","TNA","SJW","TYN","HET","INC","ZUH","FOC",
+    "WNZ","NGB","YNT","LYA","XNN","KWL","ZYI","BHY","MXZ","SWA",
+}
+
+
+def build_pickup(flight, arr_wx):
+    status     = flight.get("status", "")
+    arr_delay  = flight.get("arr_delay", 0) or 0
+    dep_iata   = flight.get("dep_iata", "")
+    arr_iata   = flight.get("arr_iata", "")
+    terminal   = flight.get("arr_terminal") or ""
+    baggage    = flight.get("arr_baggage") or ""
+    arr_city   = flight.get("arr_city_zh") or flight.get("arr_city") or arr_iata
+
+    arr_time_raw = flight.get("arr_estimated") or flight.get("arr_scheduled") or ""
+    arr_time = arr_time_raw[11:16] if len(arr_time_raw) >= 16 else ""
+
+    is_domestic = dep_iata in DOMESTIC_CN and arr_iata in DOMESTIC_CN
+    clearance_lo = 20 if is_domestic else 50
+    clearance_hi = 35 if is_domestic else 80
+    clearance_label = "国内航班" if is_domestic else "国际航班"
+
+    location = f"T{terminal} 航站楼到达出口" if terminal else "请留意到达大厅指示牌"
+
+    tips = []
+
+    if status == "cancelled":
+        tips.append("⚠️ 航班已取消，无需前往机场，请联系旅客确认改签情况。")
+    elif status == "diverted":
+        tips.append("⚠️ 航班已备降至其他机场，请等待航空公司通知后再出发。")
+    elif status == "landed":
+        tips.append("✅ 航班已落地，乘客正在出关，可前往等候区等待。")
+    elif status == "active":
+        tips.append(f"✈️ 航班飞行中，预计 {arr_time} 落地，建议提前出发。")
+    else:
+        tips.append(f"🕐 航班计划 {arr_time} 落地，请关注实时动态再出发。")
+
+    if arr_delay >= 30:
+        tips.append(f"🔴 落地延误 {arr_delay} 分钟，建议出发前再刷新确认最新到达时间。")
+    elif arr_delay > 0:
+        tips.append(f"🟡 目前落地延误 {arr_delay} 分钟，影响不大，正常出发即可。")
+
+    if arr_wx:
+        desc_en = arr_wx.get("desc_en", "").lower()
+        if any(w in desc_en for w in ["rain", "drizzle", "shower", "thunderstorm"]):
+            tips.append(f"🌧 {arr_city}正在{arr_wx['desc']}，建议在室内等候区等候，避免在出口外淋雨。")
+
+    tips.append(f"📱 建议在飞常准或航司 App 开启航班提醒，落地后第一时间收到通知。")
+
+    return {
+        "arr_time": arr_time,
+        "arr_delay": arr_delay,
+        "location": location,
+        "clearance_lo": clearance_lo,
+        "clearance_hi": clearance_hi,
+        "clearance_label": clearance_label,
+        "tips": tips,
+        "status": status,
+    }
+
+
 def packing_advice(wx):
     if not wx:
         return [], []
@@ -1370,6 +1447,83 @@ def packing_advice(wx):
         bring.append("防风外套")
 
     return bring[:6], skip[:4]
+
+
+def get_ai_content(flight_info, dep_wx, arr_wx, risk):
+    """Call OpenAI to generate advice, packing list, and city guide. Returns None on failure."""
+    if not OPENAI_API_KEY:
+        return None
+    try:
+        import openai as _openai
+        client = _openai.OpenAI(api_key=OPENAI_API_KEY)
+    except ImportError:
+        return None
+
+    arr_city = flight_info.get("arr_city_zh") or flight_info.get("arr_city") or flight_info.get("arr_iata", "")
+    dep_city = flight_info.get("dep_city_zh") or flight_info.get("dep_city") or flight_info.get("dep_iata", "")
+    risk_zh = {"low": "低", "medium": "中", "high": "高"}.get(risk, risk)
+
+    def wx_text(wx):
+        if not wx:
+            return "未知"
+        return f"{wx['desc']}，{wx['temp']}°C，能见度{wx['visibility']}km，风速{wx['wind']}km/h，湿度{wx['humidity']}%"
+
+    arr_terminal = flight_info.get("arr_terminal") or ""
+    arr_baggage  = flight_info.get("arr_baggage") or ""
+    arr_delay    = flight_info.get("arr_delay") or 0
+    arr_scheduled = flight_info.get("arr_scheduled", "")[:16].replace("T", " ")
+    arr_estimated = flight_info.get("arr_estimated", "")[:16].replace("T", " ")
+
+    prompt = f"""你是专业的接机助手，根据以下实时航班数据，给出接机相关建议，以JSON格式回复。
+
+航班：{flight_info['number']}  状态：{flight_info['status']}  出发延误：{flight_info['delay']}分钟  落地延误：{arr_delay}分钟
+出发地：{dep_city}（{flight_info['dep_iata']}）天气：{wx_text(dep_wx)}
+目的地：{arr_city}（{flight_info['arr_iata']}）天气：{wx_text(arr_wx)}
+计划落地：{arr_scheduled}  预计落地：{arr_estimated}
+到达航站楼：{arr_terminal or "未知"}  行李转盘：{arr_baggage or "未知"}
+延误风险：{risk_zh}
+
+返回JSON（只返回JSON，不要其他文字）：
+{{
+  "bring": ["目的地应带物品1", "物品2", "物品3", "物品4", "物品5"],
+  "skip": ["不需要带的物品1", "物品2", "物品3"],
+  "attractions": [
+    ["景点名称", "具体生动的一句话描述"],
+    ["景点名称", "描述"],
+    ["景点名称", "描述"]
+  ],
+  "food": [
+    ["美食名称", "在哪吃/怎么点/价格参考"],
+    ["美食名称", "描述"],
+    ["美食名称", "描述"]
+  ],
+  "tip": "目的地最实用的一条交通或生活小贴士"
+}}
+
+bring/skip：严格根据目的地实时温度和降水判断；attractions/food：选目的地最具代表性的推荐。"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            max_tokens=1200,
+            timeout=20,
+        )
+        result = json.loads(response.choices[0].message.content)
+        return {
+            "advice": result.get("advice", []),
+            "bring": result.get("bring", []),
+            "skip": result.get("skip", []),
+            "guide": {
+                "attractions": result.get("attractions", []),
+                "food": result.get("food", []),
+                "tip": result.get("tip", ""),
+            },
+        }
+    except Exception as e:
+        app.logger.warning(f"OpenAI 调用失败: {e}")
+        return None
 
 
 @app.route("/login")
@@ -1481,15 +1635,26 @@ def query():
         "arr_estimated": arr.get("estimated", ""),
         "arr_actual": arr.get("actual", ""),
         "flight_duration": calc_duration(dep.get("scheduled", ""), arr.get("scheduled", "")),
+        "dep_offset_min": get_utc_offset_min(dep.get("timezone", "")),
+        "arr_offset_min": get_utc_offset_min(arr.get("timezone", "")),
     }
 
     dep_wx = get_weather(flight_info["dep_city"], dep_iata)
     arr_wx = get_weather(flight_info["arr_city"], arr_iata)
 
     risk = assess_risk(flight_info, dep_wx, arr_wx)
+
     advice = build_advice(flight_info, risk, dep_wx, arr_wx)
-    bring, skip = packing_advice(arr_wx)
-    guide = get_city_guide(arr_iata)
+    pickup = build_pickup(flight_info, arr_wx)
+
+    ai = get_ai_content(flight_info, dep_wx, arr_wx, risk)
+    if ai:
+        bring = ai["bring"]
+        skip = ai["skip"]
+        guide = ai["guide"]
+    else:
+        bring, skip = packing_advice(arr_wx)
+        guide = get_city_guide(arr_iata)
 
     if current_user.is_authenticated:
         push_history(current_user.id, {
@@ -1510,6 +1675,7 @@ def query():
         "bring": bring,
         "skip": skip,
         "guide": guide,
+        "pickup": pickup,
     })
 
 
