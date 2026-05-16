@@ -65,7 +65,7 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 python web/app.py
 ```
 
-打开浏览器访问 `http://localhost:5000`
+打开浏览器访问 `https://flight-delay-risk-production-58b5.up.railway.app/`
 
 > **注意**：未配置 `OPENAI_API_KEY` 时，AI 行李建议和目的地指南会自动回退到内置静态数据（覆盖 70+ 城市）。
 
