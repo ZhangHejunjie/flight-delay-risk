@@ -3,3 +3,5 @@ requests
 authlib
 flask-login
 python-dotenv
+openai
+tzdata
